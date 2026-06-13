@@ -1,7 +1,18 @@
 # PLAN — Section-Addressable Markdown Editing for Google Docs
 
 Branch: `feat/section-edit-tools`
-Status: DRAFT v4 — after round-3 verification.
+Status: SHIPPED 2026-06-13. PRs upstream: [#850](https://github.com/taylorwilsdon/google_workspace_mcp/pull/850) (converter fix), [#851](https://github.com/taylorwilsdon/google_workspace_mcp/pull/851) (`copy_doc_as_snapshot`), [#852](https://github.com/taylorwilsdon/google_workspace_mcp/pull/852) (section-edit tools). Local deploy image `localhost:5050/vendor/google-workspace-mcp:v1.21.2-jtr-41cab94` running on Portainer stacks 251 (john, :8900) and 260 (frisbee, :8931).
+
+## Deploy decision history (post-v4)
+
+The Deploy section below described two USER-app reconciliation options at v4 draft time:
+
+1. Build with a fork-local Dockerfile patch dropping `USER app` (keep the existing `/root/.google_workspace_mcp/credentials` mount path).
+2. Use the upstream Dockerfile as-is + migrate the compose volume mount to `/home/app/.google_workspace_mcp/credentials` + chown the existing volume contents to UID 1000.
+
+At deploy time, **option 2 was chosen** as the long-term-best path: aligns with upstream's security improvement, no fork-local Dockerfile patch to maintain, no `deploy/section-edit-tools-root-user` branch to keep rebased. The compose changes in `~/dev/portainer-stacks/google-workspace-mcp{,-frisbee}/docker-compose.yml` mount at `/home/app/...`. The existing volume contents were chown'd via `docker run --rm -v <vol>:/data alpine sh -c "chown -R 1000:1000 /data"` on Umbridge — clean migration, no data loss. **The Deploy section below still reads as if option 1 had been chosen; treat that as a stale draft.** See the field report at `~/admin-technical/field-reports/2026-06-13-google-docs-section-edit-tools-fork.md` for the actual sequence.
+
+One operational nit surfaced post-deploy: the token-feeder sidecar runs as root and overwrites credential files as UID 0 on each ~45-min refresh — the mount-time chown only sticks until the next refresh. Functionally harmless (file mode 0644 means UID 1000 can still read) but means the "owned by 1000:1000" invariant isn't maintained. Fix candidates: chown in the token-feeder script after write, or run the feeder as UID 1000.
 
 ## Round-3 verification highlights folded in
 
@@ -555,9 +566,9 @@ git push forgejo-umbridge main
 
 ### Portainer git-redeploy
 
-Stack IDs:
-- `google-workspace-mcp` (john, port 8900): **ID to look up via `GET /api/stacks?filters={"Name":"google-workspace-mcp"}` and paste here before deploy**
-- `google-workspace-mcp-frisbee` (port 8931): ID 260 (per inventory)
+Stack IDs (resolved 2026-06-13 deploy):
+- `google-workspace-mcp` (john, port 8900): **251**
+- `google-workspace-mcp-frisbee` (port 8931): **260**
 
 For each stack:
 1. `GET /api/stacks/{id}` → capture `Env` array literally.
