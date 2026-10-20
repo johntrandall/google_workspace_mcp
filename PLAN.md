@@ -3,6 +3,8 @@
 Branch: `feat/section-edit-tools`
 Status: SHIPPED 2026-06-13. PRs upstream: [#850](https://github.com/taylorwilsdon/google_workspace_mcp/pull/850) (converter fix), [#851](https://github.com/taylorwilsdon/google_workspace_mcp/pull/851) (`copy_doc_as_snapshot`), [#852](https://github.com/taylorwilsdon/google_workspace_mcp/pull/852) (section-edit tools). Local deploy image `localhost:5050/vendor/google-workspace-mcp:v1.21.2-jtr-41cab94` running on Portainer stacks 251 (john, :8900) and 260 (frisbee, :8931).
 
+Upstream outcome 2026-10-20: #850 merged (maintainer added two follow-up fixes). #851 and #852 closed unmerged: the server is at the OpenAI tool-payload limit, so no new single-purpose tools. Replaced by [#1276](https://github.com/taylorwilsdon/google_workspace_mcp/pull/1276) (a `heading` parameter on `modify_doc_text`, logic in the docs helpers; end-to-end tested) and [#1277](https://github.com/taylorwilsdon/google_workspace_mcp/pull/1277) (snapshot-by-copy tip in the Drive skill reference). The deployed fork image still carries the four tools from this plan; whether it migrates to the upstream shape is decided after #1276 resolves.
+
 ## Deploy decision history (post-v4)
 
 The Deploy section below described two USER-app reconciliation options at v4 draft time:
