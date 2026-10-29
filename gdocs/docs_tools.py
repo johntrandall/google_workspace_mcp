@@ -73,7 +73,7 @@ from gdocs.docs_markdown import (
     format_comments_appendix,
     parse_drive_comments,
 )
-from gdocs.docs_markdown_writer import markdown_to_docs_requests
+from gdocs.docs_markdown_writer import _utf16_len, markdown_to_docs_requests
 from gdocs.docs_plain_text import render_doc_to_plain_text
 from gdocs.operation_schemas import BatchDocOperations, ParagraphBorderEdge
 
@@ -3248,7 +3248,7 @@ async def replace_doc_section_by_heading(
     # function, but the inserted-text length equals sum of insertText request
     # text-field lengths. Compute for the return message.
     inserted_len = sum(
-        len(r.get("insertText", {}).get("text", ""))
+        _utf16_len(r.get("insertText", {}).get("text", ""))
         for r in requests
         if "insertText" in r
     )
@@ -3336,7 +3336,7 @@ async def append_doc_after_heading(
     )
 
     inserted_len = sum(
-        len(r.get("insertText", {}).get("text", ""))
+        _utf16_len(r.get("insertText", {}).get("text", ""))
         for r in requests
         if "insertText" in r
     )
@@ -3446,7 +3446,7 @@ async def replace_doc_fully_from_markdown(
     )
 
     inserted_len = sum(
-        len(r.get("insertText", {}).get("text", ""))
+        _utf16_len(r.get("insertText", {}).get("text", ""))
         for r in requests
         if "insertText" in r
     )

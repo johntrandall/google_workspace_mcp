@@ -395,3 +395,87 @@ def test_heading_followed_by_body_has_normal_reset_between():
         "NORMAL_TEXT",
         "NORMAL_TEXT",
     ]
+
+
+# --- UTF-16 offsets (emoji) -------------------------------------------------
+#
+# The Docs API indexes a document in UTF-16 code units; an emoji is one Python
+# code point but two UTF-16 units. These tests replay the requests against a
+# UTF-16 buffer the way the API would and check what lands where.
+
+EMOJI_MARKDOWN = (
+    "# 🎂 Birthdays\n"
+    "\n"
+    "Max turns 14 🎉🎈 on Friday.\n"
+    "\n"
+    "A line with no emoji at all.\n"
+    "\n"
+    "- Sam 🎁 gift ordered\n"
+    "- Finn party at noon\n"
+)
+
+
+def _apply_inserts(requests):
+    """Replay insertText requests into an empty body; return (buffer, text)."""
+    body = bytearray("\n".encode("utf-16-le"))  # index 1 = the body's final newline
+    for r in requests:
+        if "insertText" in r:
+            offset = (r["insertText"]["location"]["index"] - 1) * 2
+            body[offset:offset] = r["insertText"]["text"].encode("utf-16-le")
+    return body, body.decode("utf-16-le")
+
+
+def _covered(body, rng):
+    return bytes(body[(rng["startIndex"] - 1) * 2 : (rng["endIndex"] - 1) * 2]).decode(
+        "utf-16-le"
+    )
+
+
+def test_emoji_lines_land_intact_and_in_order():
+    _, text = _apply_inserts(markdown_to_docs_requests(EMOJI_MARKDOWN))
+    paragraphs = [p for p in text.split("\n") if p]
+    assert paragraphs == [
+        "🎂 Birthdays",
+        "Max turns 14 🎉🎈 on Friday.",
+        "A line with no emoji at all.",
+        "Sam 🎁 gift ordered",
+        "Finn party at noon",
+    ]
+
+
+def test_emoji_style_ranges_cover_their_own_text():
+    requests = markdown_to_docs_requests(EMOJI_MARKDOWN)
+    body, _ = _apply_inserts(requests)
+    heading = next(
+        r["updateParagraphStyle"]["range"]
+        for r in requests
+        if r.get("updateParagraphStyle", {})
+        .get("paragraphStyle", {})
+        .get("namedStyleType")
+        == "HEADING_1"
+    )
+    assert _covered(body, heading) == "🎂 Birthdays\n"
+    bullets = next(
+        r["createParagraphBullets"]["range"]
+        for r in requests
+        if "createParagraphBullets" in r
+    )
+    assert _covered(body, bullets) == "Sam 🎁 gift ordered\nFinn party at noon\n"
+
+
+def test_inline_style_after_emoji_covers_the_styled_word():
+    requests = markdown_to_docs_requests("🎉 **bold** tail")
+    body, _ = _apply_inserts(requests)
+    bold = next(
+        r["updateTextStyle"]["range"]
+        for r in requests
+        if r.get("updateTextStyle", {}).get("textStyle", {}).get("bold")
+    )
+    assert _covered(body, bold) == "bold"
+
+
+def test_lone_surrogate_counts_as_one_unit():
+    from gdocs.docs_markdown_writer import _utf16_len
+
+    assert _utf16_len("🎉") == 2
+    assert _utf16_len("a\ud800b") == 3
